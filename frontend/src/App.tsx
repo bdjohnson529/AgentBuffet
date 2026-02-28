@@ -11,7 +11,7 @@ import { AnalysisPanel } from "./components/AnalysisPanel";
 import { formatNumberCompact } from "./lib/format";
 import { ReportFileSchema, type ReportFile } from "./intelligence/schema";
 
-type Tab = "overview" | "analysis" | "news" | "prices" | "financials" | "filings" | "insider" | "peers";
+type Tab = "analysis" | "news" | "prices" | "financials" | "filings" | "insider" | "peers";
 
 function getQueryParam(name: string): string | null {
   const url = new URL(window.location.href);
@@ -50,7 +50,7 @@ export function App() {
 
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string>(() => getQueryParam("t")?.toUpperCase() ?? "");
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>("analysis");
 
   const [news, setNews] = useState<NewsJson | null>(null);
   const [prices, setPrices] = useState<PricesJson | null>(null);
@@ -142,7 +142,6 @@ export function App() {
 
   const tabs = useMemo(
     () => [
-      { id: "overview" as const, label: "Overview" },
       { id: "analysis" as const, label: "Analysis" },
       { id: "news" as const, label: "News" },
       { id: "prices" as const, label: "Prices" },
@@ -186,7 +185,7 @@ export function App() {
                 onClick={() => {
                   setSelected(t);
                   setQueryParam("t", t);
-                  setTab("overview");
+                  setTab("analysis");
                 }}
                 role="button"
                 tabIndex={0}
@@ -217,23 +216,20 @@ export function App() {
             <Tabs tabs={tabs} active={tab} onChange={setTab} />
             {dataError ? <div className="error">{dataError}</div> : null}
 
-            {tab === "overview" ? (
-              financials ? (
-                <div className="row">
-                  <FinancialsPanel financials={financials} estimates={estimates} prices={prices} />
-                </div>
-              ) : (
-                <div className="muted">No financials loaded for {selected}.</div>
-              )
-            ) : null}
-
             {tab === "analysis" ? (
               selected ? (
-                <AnalysisPanel
-                  ticker={selected}
-                  existingReport={report}
-                  onReportUpdated={(r) => setReport(r)}
-                />
+                <>
+                  {financials ? (
+                    <div className="row">
+                      <FinancialsPanel financials={financials} estimates={estimates} prices={prices} />
+                    </div>
+                  ) : null}
+                  <AnalysisPanel
+                    ticker={selected}
+                    existingReport={report}
+                    onReportUpdated={(r) => setReport(r)}
+                  />
+                </>
               ) : (
                 <div className="muted">Select a ticker.</div>
               )

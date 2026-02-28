@@ -58,7 +58,7 @@ export function AnalysisPanel({ ticker, existingReport, onReportUpdated }: Props
     [],
   );
   const anthropicModelOptions = useMemo(
-    () => ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"],
+    () => ["claude-opus-4-6", "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"],
     [],
   );
 

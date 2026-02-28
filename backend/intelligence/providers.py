@@ -62,7 +62,7 @@ def complete_report_json(prompt: str, *, provider: str = "either", model: Option
         cfg = LLMConfig(provider="openai", model=model or os.getenv("OPENAI_MODEL", "gpt-4.1-mini"))
         return _openai_complete_json(cfg, prompt)
     else:
-        cfg = LLMConfig(provider="anthropic", model=model or os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest"))
+        cfg = LLMConfig(provider="anthropic", model=model or os.getenv("ANTHROPIC_MODEL", "claude-opus-4-6"))
         return _anthropic_complete_json(cfg, prompt)
 
 
