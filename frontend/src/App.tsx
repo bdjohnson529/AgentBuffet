@@ -66,6 +66,7 @@ export function App() {
 
   const [dataError, setDataError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
+  const [tickerActions, setTickerActions] = useState<Record<string, "BUY" | "HOLD" | "SELL" | "AVOID" | null>>({});
 
   useEffect(() => {
     saveLLMSettings(llmSettings);
@@ -102,6 +103,31 @@ export function App() {
     if (!q) return tickers;
     return tickers.filter((t) => t.includes(q));
   }, [tickers, search]);
+
+  // Load report actions for sidebar labels (BUY / SELL)
+  useEffect(() => {
+    if (!filtered.length) return;
+    let cancelled = false;
+    (async () => {
+      const results = await Promise.allSettled(
+        filtered.map(async (t) => {
+          const r = await fetchReportFile(t);
+          return { ticker: t, action: r?.report?.action ?? null } as const;
+        })
+      );
+      if (cancelled) return;
+      const next: Record<string, "BUY" | "HOLD" | "SELL" | "AVOID" | null> = {};
+      for (const res of results) {
+        if (res.status === "fulfilled" && res.value) {
+          next[res.value.ticker] = res.value.action;
+        }
+      }
+      setTickerActions((prev) => ({ ...prev, ...next }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [filtered.join(",")]);
 
   useEffect(() => {
     if (!selected) return;
@@ -209,6 +235,11 @@ export function App() {
                       : " "}
                   </div>
                 </div>
+                {tickerActions[t] === "BUY" ? (
+                  <span className="tickerTarget tickerTargetBuy">BUY</span>
+                ) : tickerActions[t] === "SELL" || tickerActions[t] === "AVOID" ? (
+                  <span className="tickerTarget tickerTargetSell">SELL</span>
+                ) : null}
               </div>
             ))}
             {!tickerError && !filtered.length && !loadingTickers ? (
