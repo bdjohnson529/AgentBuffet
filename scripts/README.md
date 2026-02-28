@@ -10,8 +10,25 @@ From the repo root:
 pip install -r requirements.txt
 ```
 
+## Master script (recommended)
 
-## Scripts
+**`run_all.py`** — Run every data script for every ticker in one go. No need to pick scripts or tickers manually.
+
+From repo root:
+
+```bash
+python scripts/run_all.py
+```
+
+- **Tickers:** Automatically discovered from `stocks/` subdirectories (e.g. `stocks/AAPL/`, `stocks/TSM/`). Override with `--tickers AAPL,MSFT,GOOGL`.
+- **Output:** Each script writes into `stocks/[TICKER]/` (e.g. `news.json`, `financials.json`, `filings.json`, etc.). A run summary is written to `reports/data_run_YYYY-MM-DD.md`.
+- **Options:** `--dry-run` (print what would run), `--skip-reports-summary` (do not write the summary to reports).
+
+Use this instead of invoking individual scripts when you want a full data refresh for all tickers.
+
+---
+
+## Individual scripts
 
 ### `get_news.py`
 
@@ -108,6 +125,6 @@ python scripts/get_peers.py AAPL --format markdown -o stocks/AAPL/peers.json
 
 ## Use with Claude
 
-- Run scripts and pass output into context, or
-- Save to `stocks/[TICKER]/` and reference from `research.md` / analysis.
-- **SEC scripts:** EDGAR asks for a descriptive User-Agent; the scripts set one. Stay under ~10 requests/second.
+- **Preferred:** Run `python scripts/run_all.py` once to pull all data into `stocks/[TICKER]/`, then reference those files from `research.md` / analysis.
+- Alternatively run individual scripts and pass output into context, or save to `stocks/[TICKER]/`.
+- **SEC scripts:** EDGAR asks for a descriptive User-Agent; the scripts set one. Stay under ~10 requests/second. The master script adds a short delay between SEC script runs.
