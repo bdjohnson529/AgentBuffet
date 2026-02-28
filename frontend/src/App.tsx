@@ -8,8 +8,11 @@ import { FilingsTable } from "./components/FilingsTable";
 import { PriceChart } from "./components/PriceChart";
 import { FinancialsPanel } from "./components/FinancialsPanel";
 import { AnalysisPanel } from "./components/AnalysisPanel";
+import { LLMSettingsDropdown } from "./components/LLMSettingsDropdown";
 import { formatNumberCompact } from "./lib/format";
 import { ReportFileSchema, type ReportFile } from "./intelligence/schema";
+import type { LLMSettings } from "./intelligence/api";
+import { loadLLMSettings, saveLLMSettings } from "./intelligence/settings";
 
 type Tab = "analysis" | "news" | "prices" | "financials" | "filings" | "insider" | "peers";
 
@@ -48,6 +51,7 @@ export function App() {
   const [loadingTickers, setLoadingTickers] = useState(true);
   const [tickerError, setTickerError] = useState<string | null>(null);
 
+  const [llmSettings, setLlmSettings] = useState<LLMSettings>(() => loadLLMSettings());
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string>(() => getQueryParam("t")?.toUpperCase() ?? "");
   const [tab, setTab] = useState<Tab>("analysis");
@@ -62,6 +66,10 @@ export function App() {
 
   const [dataError, setDataError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
+
+  useEffect(() => {
+    saveLLMSettings(llmSettings);
+  }, [llmSettings]);
 
   useEffect(() => {
     (async () => {
@@ -167,7 +175,10 @@ export function App() {
             placeholder={loadingTickers ? "Loading tickers…" : "Search tickers…"}
           />
         </div>
-        <div className="pill">data: {"stocks/<TICKER>/*.json"}</div>
+        <div className="topbarRight">
+          <LLMSettingsDropdown settings={llmSettings} setSettings={setLlmSettings} />
+          <div className="pill">data: {"stocks/<TICKER>/*.json"}</div>
+        </div>
       </div>
 
       <div className="grid">
@@ -226,6 +237,8 @@ export function App() {
                   ) : null}
                   <AnalysisPanel
                     ticker={selected}
+                    settings={llmSettings}
+                    setSettings={setLlmSettings}
                     existingReport={report}
                     onReportUpdated={(r) => setReport(r)}
                   />

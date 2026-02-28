@@ -22,33 +22,81 @@ class LLMError(RuntimeError):
     pass
 
 
-def _detect_provider(requested: str) -> ProviderName:
+def _provider_candidates(requested: str) -> list[ProviderName]:
     """
     requested: openai | anthropic | either
+    Returns providers to try, in priority order.
     """
     req = (requested or "either").strip().lower()
     if req in {"openai", "anthropic"}:
-        return req  # type: ignore[return-value]
+        return [req]  # type: ignore[list-item]
     if req != "either":
         raise LLMError(f"Unknown provider: {requested}")
 
     has_openai = bool(os.getenv("OPENAI_API_KEY"))
     has_anthropic = bool(os.getenv("ANTHROPIC_API_KEY"))
-    if has_openai and not has_anthropic:
-        return "openai"
-    if has_anthropic and not has_openai:
-        return "anthropic"
-    if has_openai and has_anthropic:
-        # Default preference (can be overridden by CLI flag).
-        return "openai"
-    raise LLMError("No API key found. Set OPENAI_API_KEY and/or ANTHROPIC_API_KEY.")
+    if not has_openai and not has_anthropic:
+        raise LLMError("No API key found. Set OPENAI_API_KEY and/or ANTHROPIC_API_KEY.")
+
+    # Default preference order if both are available.
+    out: list[ProviderName] = []
+    if has_anthropic:
+        out.append("anthropic")
+    if has_openai:
+        out.append("openai")
+    return out
+
+
+def _maybe_unwrap_markdown_fences(text: str) -> str:
+    """
+    If the model wrapped JSON in ```json fences, unwrap the first fenced block.
+    """
+    s = (text or "").strip()
+    if "```" not in s:
+        return s
+    parts = s.split("```")
+    if len(parts) < 3:
+        return s
+    # parts[1] is language header + content; prefer it
+    candidate = parts[1]
+    # Remove optional leading language token on the first line.
+    lines = candidate.splitlines()
+    if lines and lines[0].strip().lower() in {"json", "javascript"}:
+        candidate = "\n".join(lines[1:])
+    return candidate.strip()
+
+
+def _extract_json_object(text: str) -> Optional[str]:
+    """
+    Best-effort extraction of a top-level JSON object from arbitrary text.
+    We intentionally keep this simple and conservative.
+    """
+    s = (text or "").strip()
+    if not s:
+        return None
+    start = s.find("{")
+    end = s.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return None
+    return s[start : end + 1].strip()
 
 
 def _parse_report_json(text: str) -> dict[str, Any]:
+    raw = text or ""
+    s = _maybe_unwrap_markdown_fences(raw)
     try:
-        obj = json.loads(text)
+        obj = json.loads(s)
     except Exception as e:
-        raise LLMError(f"Model did not return valid JSON: {e}") from e
+        extracted = _extract_json_object(s)
+        if extracted and extracted != s:
+            try:
+                obj = json.loads(extracted)
+            except Exception:
+                snippet = (s[:300] + "…") if len(s) > 300 else s
+                raise LLMError(f"Model did not return valid JSON: {e}. Output starts with: {snippet!r}") from e
+        else:
+            snippet = (s[:300] + "…") if len(s) > 300 else s
+            raise LLMError(f"Model did not return valid JSON: {e}. Output starts with: {snippet!r}") from e
     try:
         m = ReportModel.model_validate(obj)
     except Exception as e:
@@ -57,13 +105,19 @@ def _parse_report_json(text: str) -> dict[str, Any]:
 
 
 def complete_report_json(prompt: str, *, provider: str = "either", model: Optional[str] = None) -> dict[str, Any]:
-    prov = _detect_provider(provider)
-    if prov == "openai":
-        cfg = LLMConfig(provider="openai", model=model or os.getenv("OPENAI_MODEL", "gpt-4.1-mini"))
-        return _openai_complete_json(cfg, prompt)
-    else:
-        cfg = LLMConfig(provider="anthropic", model=model or os.getenv("ANTHROPIC_MODEL", "claude-opus-4-6"))
-        return _anthropic_complete_json(cfg, prompt)
+    last_err: Optional[Exception] = None
+    for prov in _provider_candidates(provider):
+        try:
+            if prov == "openai":
+                cfg = LLMConfig(provider="openai", model=model or os.getenv("OPENAI_MODEL", "gpt-4.1-mini"))
+                return _openai_complete_json(cfg, prompt)
+            else:
+                cfg = LLMConfig(provider="anthropic", model=model or os.getenv("ANTHROPIC_MODEL", "claude-opus-4-6"))
+                return _anthropic_complete_json(cfg, prompt)
+        except Exception as e:
+            last_err = e
+            continue
+    raise LLMError(str(last_err) if last_err else "LLM request failed.")
 
 
 def _openai_complete_json(cfg: LLMConfig, prompt: str) -> dict[str, Any]:

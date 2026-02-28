@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { FactsBundle } from "../intelligence/facts";
 import { loadFactsForTicker, loadThesisText } from "../intelligence/facts";
 import { buildChatSystemPrompt, buildReportPrompt } from "../intelligence/prompts";
@@ -9,6 +10,8 @@ import { Markdown } from "./Markdown";
 
 type Props = {
   ticker: string;
+  settings: LLMSettings;
+  setSettings: Dispatch<SetStateAction<LLMSettings>>;
   existingReport: ReportFile | null;
   onReportUpdated: (r: ReportFile) => void;
 };
@@ -24,43 +27,9 @@ function extractLikelyJson(text: string): string {
   return t;
 }
 
-function loadSettings(): LLMSettings {
-  try {
-    const raw = localStorage.getItem("ab_intelligence_settings");
-    if (!raw) return { provider: "either", temperature: 0.2, maxOutputTokens: 900 };
-    const obj = JSON.parse(raw) as Partial<LLMSettings>;
-    return {
-      provider: obj.provider ?? "either",
-      model: obj.model,
-      temperature: typeof obj.temperature === "number" ? obj.temperature : 0.2,
-      maxOutputTokens: typeof obj.maxOutputTokens === "number" ? obj.maxOutputTokens : 900,
-    };
-  } catch {
-    return { provider: "either", temperature: 0.2, maxOutputTokens: 900 };
-  }
-}
-
-function saveSettings(s: LLMSettings) {
-  try {
-    localStorage.setItem("ab_intelligence_settings", JSON.stringify(s));
-  } catch {
-    // ignore
-  }
-}
-
-export function AnalysisPanel({ ticker, existingReport, onReportUpdated }: Props) {
-  const [settings, setSettings] = useState<LLMSettings>(() => loadSettings());
+export function AnalysisPanel({ ticker, existingReport, onReportUpdated, settings, setSettings }: Props) {
   const [facts, setFacts] = useState<FactsBundle | null>(null);
   const [thesisText, setThesisText] = useState<string | null>(null);
-
-  const openaiModelOptions = useMemo(
-    () => ["gpt-4.1-mini", "gpt-4.1", "gpt-4.1-nano", "gpt-4o-mini", "gpt-4o"],
-    [],
-  );
-  const anthropicModelOptions = useMemo(
-    () => ["claude-opus-4-6", "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-opus-latest"],
-    [],
-  );
 
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [reportFields, setReportFields] = useState<ReportFields | null>(existingReport?.report ?? null);
@@ -71,10 +40,6 @@ export function AnalysisPanel({ ticker, existingReport, onReportUpdated }: Props
     { role: "assistant", content: "Ask me about valuation, risks, or the final decision — I’ll answer using the thesis + facts for this ticker." },
   ]);
   const [chatInput, setChatInput] = useState("");
-
-  useEffect(() => {
-    saveSettings(settings);
-  }, [settings]);
 
   useEffect(() => {
     setReportFields(existingReport?.report ?? null);
@@ -202,112 +167,8 @@ export function AnalysisPanel({ ticker, existingReport, onReportUpdated }: Props
 
   const headline = existingReport?.report?.action ? `${existingReport.report.action}` : reportFields?.action ? reportFields.action : "—";
 
-  const allKnownModels = useMemo(() => {
-    const set = new Set<string>();
-    for (const m of openaiModelOptions) set.add(m);
-    for (const m of anthropicModelOptions) set.add(m);
-    return Array.from(set);
-  }, [anthropicModelOptions, openaiModelOptions]);
-
-  const selectedModelValue = settings.model ?? "";
-  const modelSelectValue =
-    !selectedModelValue ? "" : allKnownModels.includes(selectedModelValue) ? selectedModelValue : "__custom__";
-
   return (
     <div className="row" style={{ gridColumn: "span 12" }}>
-      <div className="card" style={{ gridColumn: "span 12" }}>
-        <div className="cardTitle">LLM settings</div>
-        <div className="row" style={{ marginTop: 10 }}>
-          <div className="card" style={{ gridColumn: "span 3" }}>
-            <div className="cardTitle">Provider</div>
-            <select
-              className="input"
-              value={settings.provider}
-              onChange={(e) => setSettings((s) => ({ ...s, provider: e.target.value as any }))}
-            >
-              <option value="either">either (auto)</option>
-              <option value="openai">openai</option>
-              <option value="anthropic">anthropic</option>
-            </select>
-            <div className="small muted" style={{ marginTop: 6 }}>
-              Keys are read from repo-root <span style={{ fontFamily: "var(--mono)" }}>.env</span>.
-            </div>
-          </div>
-
-          <div className="card" style={{ gridColumn: "span 5" }}>
-            <div className="cardTitle">Model (optional override)</div>
-            <select
-              className="input"
-              value={modelSelectValue}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (!v) {
-                  setSettings((s) => ({ ...s, model: undefined }));
-                  return;
-                }
-                if (v === "__custom__") {
-                  if (!selectedModelValue) setSettings((s) => ({ ...s, model: "" }));
-                  return;
-                }
-                setSettings((s) => ({ ...s, model: v }));
-              }}
-            >
-              <option value="">(use env default)</option>
-              <optgroup label="OpenAI">
-                {openaiModelOptions.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Anthropic">
-                {anthropicModelOptions.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </optgroup>
-              <option value="__custom__">Custom…</option>
-            </select>
-            {modelSelectValue === "__custom__" ? (
-              <input
-                className="input"
-                style={{ marginTop: 8 }}
-                value={selectedModelValue}
-                onChange={(e) => setSettings((s) => ({ ...s, model: e.target.value || undefined }))}
-                placeholder="Type a model name…"
-              />
-            ) : null}
-            <div className="small muted" style={{ marginTop: 6 }}>
-              Leave blank to use <span style={{ fontFamily: "var(--mono)" }}>OPENAI_MODEL</span> /{" "}
-              <span style={{ fontFamily: "var(--mono)" }}>ANTHROPIC_MODEL</span>.
-            </div>
-          </div>
-
-          <div className="card" style={{ gridColumn: "span 2" }}>
-            <div className="cardTitle">Temp</div>
-            <input
-              className="input"
-              type="number"
-              min={0}
-              max={2}
-              step={0.1}
-              value={settings.temperature ?? 0.2}
-              onChange={(e) => setSettings((s) => ({ ...s, temperature: Number(e.target.value) }))}
-            />
-          </div>
-
-          <div className="card" style={{ gridColumn: "span 2" }}>
-            <div className="cardTitle">Max tokens</div>
-            <input
-              className="input"
-              type="number"
-              min={64}
-              max={4000}
-              step={64}
-              value={settings.maxOutputTokens ?? 900}
-              onChange={(e) => setSettings((s) => ({ ...s, maxOutputTokens: Number(e.target.value) }))}
-            />
-          </div>
-        </div>
-      </div>
-
       <div className="card" style={{ gridColumn: "span 12" }}>
         <div className="cardTitle">Report generation</div>
         <div className="small muted" style={{ marginTop: 6 }}>

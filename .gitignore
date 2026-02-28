@@ -12,3 +12,5 @@ dist/
 
 .cursor/
 frontend/dist/
+
+stocks.txt.copy
