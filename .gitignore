@@ -3,3 +3,7 @@
 
 stocks/*
 reports/*
+
+node_modules/
+dist/
+.vite/

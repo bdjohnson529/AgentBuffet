@@ -6,6 +6,26 @@ Investment analyst workspace: stock data scripts and research pipelines. See [CL
 
 Use a virtual environment so project dependencies don’t pollute your system Python.
 
+## Web UI (browse `stocks/` in a browser)
+
+This repo includes a simple React/Vite frontend for browsing the generated JSON under `stocks/<TICKER>/`.
+
+From the repo root:
+
+```bash
+npm install
+npm run dev
+```
+
+Then open the URL printed by Vite (typically `http://localhost:5173`).
+
+To refresh the data the UI reads:
+
+```bash
+source .venv/bin/activate
+python run.py
+```
+
 ### Option 1: Setup script (recommended)
 
 From the repo root:

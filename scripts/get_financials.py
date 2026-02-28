@@ -13,6 +13,7 @@ Usage:
 
 import argparse
 import json
+import math
 import sys
 from typing import Any, Optional
 
@@ -164,6 +165,8 @@ def main():
             if hasattr(obj, "item"):  # numpy scalar
                 return obj.item()
             if isinstance(obj, (int, float)) and not isinstance(obj, bool):
+                if isinstance(obj, float) and not math.isfinite(obj):
+                    return None
                 return obj
             if isinstance(obj, dict):
                 return {str(k): sanitize(v) for k, v in obj.items()}
@@ -174,7 +177,7 @@ def main():
             return obj
 
         data = sanitize(data)
-        text = json.dumps(data, indent=2)
+        text = json.dumps(data, indent=2, allow_nan=False)
     else:
         text = to_markdown(data)
 
