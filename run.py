@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Master script: run every data script in scripts/ for every ticker under stocks/.
+Master script: run every data script in scripts/ for every ticker listed in stocks.txt.
 
-Discovers tickers from stocks/ subdirectories, runs get_news, get_financials,
-get_filings, get_insider, get_prices, get_estimates, get_peers for each, writes
-output into stocks/[TICKER]/, and writes a run summary to reports/.
+Discovers tickers from stocks.txt (one per line, optional $ prefix), runs get_news,
+get_financials, get_filings, get_insider, get_prices, get_estimates, get_peers for
+each, writes output into stocks/[TICKER]/, and writes a run summary to reports/.
 
 Usage (from repo root):
-  python scripts/run_all.py
-  python scripts/run_all.py --tickers AAPL,MSFT,GOOGL
-  python scripts/run_all.py --dry-run
+  python run.py
+  python run.py --tickers AAPL,MSFT,GOOGL
+  python run.py --dry-run
 """
 
 from __future__ import annotations
@@ -55,16 +55,17 @@ def repo_root() -> Path:
     return root
 
 
-def discover_tickers(stocks_dir: Path) -> list[str]:
-    """Return sorted list of ticker symbols from stocks/ subdirectory names."""
-    if not stocks_dir.is_dir():
+def load_tickers_from_file(stocks_file: Path) -> list[str]:
+    """Return sorted list of unique ticker symbols from stocks.txt (one per line, optional $ prefix)."""
+    if not stocks_file.is_file():
         return []
-    tickers = [
-        d.name
-        for d in stocks_dir.iterdir()
-        if d.is_dir() and not d.name.startswith(".") and d.name.isalpha()
-    ]
-    return sorted(tickers)
+    raw = stocks_file.read_text(encoding="utf-8").strip()
+    tickers = []
+    for line in raw.splitlines():
+        sym = line.strip().lstrip("$").strip().upper()
+        if sym and sym.isalpha():
+            tickers.append(sym)
+    return sorted(set(tickers))
 
 def run_script(
     scripts_dir: Path,
@@ -134,13 +135,14 @@ def main() -> None:
     scripts_dir = root / "scripts"
     stocks_dir = root / "stocks"
     reports_dir = root / "reports"
+    stocks_file = root / "stocks.txt"
 
     if args.tickers:
         tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
     else:
-        tickers = discover_tickers(stocks_dir)
+        tickers = load_tickers_from_file(stocks_file)
         if not tickers:
-            print("No tickers found under stocks/. Create stocks/TICKER/ or pass --tickers AAPL,...", file=sys.stderr)
+            print("No tickers found in stocks.txt. Add one ticker per line (optional $ prefix) or pass --tickers AAPL,...", file=sys.stderr)
             sys.exit(1)
 
     reports_dir.mkdir(parents=True, exist_ok=True)
