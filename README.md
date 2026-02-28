@@ -11,7 +11,7 @@ Use a virtual environment so project dependencies don’t pollute your system Py
 From the repo root:
 
 ```bash
-./scripts/setup_venv.sh
+./setup.sh
 ```
 
 This creates `.venv` in the repo root and installs dependencies from `scripts/requirements.txt`. Then activate and run scripts:
