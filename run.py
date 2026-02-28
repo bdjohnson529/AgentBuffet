@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -66,6 +67,85 @@ def load_tickers_from_file(stocks_file: Path) -> list[str]:
         if sym and sym.isalpha():
             tickers.append(sym)
     return sorted(set(tickers))
+
+# ANSI helpers — disabled automatically when stdout is not a TTY
+_TTY = sys.stdout.isatty()
+_R  = "\033[0m"   # reset
+_B  = "\033[1m"   # bold
+_D  = "\033[2m"   # dim
+_G  = "\033[32m"  # green
+_Y  = "\033[33m"  # yellow
+_C  = "\033[36m"  # cyan
+_GR = "\033[90m"  # gray
+
+_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
+
+class ProgressSpinner:
+    """Braille spinner + coloured progress bar, animated in a background thread."""
+
+    def __init__(self, total: int) -> None:
+        self._total = total
+        self._step = 0
+        self._ticker = ""
+        self._script = ""
+        self._idx = 0
+        self._lock = threading.Lock()
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+
+    def update(self, step: int, ticker: str, script: str) -> None:
+        with self._lock:
+            self._step = step
+            self._ticker = ticker
+            self._script = script
+
+    def _render(self) -> str:
+        with self._lock:
+            step, total = self._step, self._total
+            ticker, script = self._ticker, self._script
+
+        frame = _FRAMES[self._idx % len(_FRAMES)]
+        self._idx += 1
+        width = 22
+        filled = int(width * step / total) if total else width
+        pct = int(100 * step / total) if total else 100
+
+        if _TTY:
+            bar = f"{_G}{'█' * filled}{_GR}{'░' * (width - filled)}{_R}"
+            return (
+                f"{_C}{frame}{_R} "
+                f"[{bar}] "
+                f"{_B}{step}/{total}{_R} "
+                f"{_D}({pct:3d}%){_R}  "
+                f"{_B}{_Y}{ticker}{_R} "
+                f"{_D}› {script}{_R}"
+            )
+        else:
+            bar_plain = "=" * filled + (">" if filled < width else "") + " " * max(0, width - filled - 1)
+            return f"[{bar_plain}] {step}/{total} ({pct:3d}%)  {ticker} | {script}"
+
+    def _loop(self) -> None:
+        while not self._stop.is_set():
+            sys.stdout.write(f"\r{self._render():<110}")
+            sys.stdout.flush()
+            self._stop.wait(0.08)
+
+    def stop(self, failed: int = 0) -> None:
+        self._stop.set()
+        self._thread.join()
+        total = self._total
+        full_bar = f"{_G}{'█' * 22}{_R}" if _TTY else "=" * 22
+        if failed:
+            icon = f"{_Y}✖{_R}" if _TTY else "x"
+            note = f"{_B}Done — {failed} failure(s){_R}" if _TTY else f"Done — {failed} failure(s)"
+        else:
+            icon = f"{_G}✔{_R}" if _TTY else "v"
+            note = f"{_G}{_B}All done!{_R}" if _TTY else "All done!"
+        sys.stdout.write(f"\r{icon} [{full_bar}] {_B}{total}/{total}{_R} (100%)   {note}\n")
+        sys.stdout.flush()
+
 
 def run_script(
     scripts_dir: Path,
@@ -157,6 +237,9 @@ def main() -> None:
         "|--------|--------|--------|",
     ]
     failed = []
+    total_steps = len(tickers) * len(SCRIPT_SPECS)
+    step = 0
+    spinner = ProgressSpinner(total_steps)
 
     for ticker in tickers:
         ticker_dir = stocks_dir / ticker
@@ -164,6 +247,8 @@ def main() -> None:
             ticker_dir.mkdir(parents=True, exist_ok=True)
 
         for script_name, extra_args in SCRIPT_SPECS:
+            step += 1
+            spinner.update(step, ticker, script_name)
             base = script_name.replace(".py", "")
             out_file = OUTPUT_FILES.get(base, f"{base}.json")
             out_path = ticker_dir / out_file
@@ -179,6 +264,7 @@ def main() -> None:
             if base in SEC_SCRIPTS and ok and not args.dry_run:
                 time.sleep(SEC_DELAY_SEC)
 
+    spinner.stop(failed=len(failed))
     elapsed = time.perf_counter() - start
     log_lines.extend([
         "",
