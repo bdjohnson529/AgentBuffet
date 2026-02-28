@@ -4,9 +4,9 @@
 # Or: bash scripts/setup_venv.sh
 
 set -e
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/" && pwd)"
 VENV_DIR="${REPO_ROOT}/.venv"
-REQUIREMENTS="${REPO_ROOT}/scripts/requirements.txt"
+REQUIREMENTS="${REPO_ROOT}/requirements.txt"
 
 cd "$REPO_ROOT"
 
@@ -19,7 +19,7 @@ fi
 echo "Creating virtual environment at $VENV_DIR"
 python3 -m venv "$VENV_DIR"
 
-echo "Activating and installing dependencies from scripts/requirements.txt"
+echo "Activating and installing dependencies from requirements.txt"
 # shellcheck source=/dev/null
 source "$VENV_DIR/bin/activate"
 pip install --upgrade pip

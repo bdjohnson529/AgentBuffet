@@ -18,7 +18,7 @@ This creates `.venv` in the repo root and installs dependencies from `scripts/re
 
 ```bash
 source .venv/bin/activate
-python scripts/run_all.py
+python run.py
 ```
 
 To leave the virtual environment:
