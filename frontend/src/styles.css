@@ -307,6 +307,51 @@ a {
   color: var(--muted);
 }
 
+/* Compact stats: one card, no per-stat borders */
+.statsCompact {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px 16px;
+  padding: 12px 14px;
+}
+
+.statsCompactItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.statsCompactLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.statsCompactValue {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02px;
+  color: var(--text);
+}
+
+.statsSectionDivider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 12px 0 10px;
+}
+
+.statsSubsectionTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
 .muted {
   color: var(--muted);
 }
