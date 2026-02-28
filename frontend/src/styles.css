@@ -69,6 +69,39 @@ a {
   margin-bottom: 16px;
 }
 
+.topbarRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settingsDetails {
+  position: relative;
+}
+
+.settingsSummary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.settingsDetails > summary {
+  list-style: none;
+}
+
+.settingsDetails > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settingsMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: min(720px, 92vw);
+  z-index: 50;
+  box-shadow: var(--shadow);
+  background: var(--bg);
+}
+
 .brand {
   display: flex;
   align-items: baseline;
@@ -245,6 +278,14 @@ a {
   background: rgba(255, 255, 255, 0.04);
   border-radius: var(--radius);
   padding: 12px;
+}
+
+.card.settingsMenu {
+  background: var(--bg);
+}
+
+.settingsMenu .card {
+  background: color-mix(in oklab, var(--bg) 92%, var(--text) 8%);
 }
 
 .cardTitle {
