@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Create and prepare a Python virtual environment for AgentBuffet scripts.
-# Run from repo root: ./scripts/setup_venv.sh
-# Or: bash scripts/setup_venv.sh
+# Run from repo root: ./backend/setup.sh
+# Or: bash backend/setup.sh
 
 set -e
 REPO_ROOT="$(cd "$(dirname "$0")/" && pwd)"

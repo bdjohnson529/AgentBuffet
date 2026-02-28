@@ -13,6 +13,7 @@ This repo includes a simple React/Vite frontend for browsing the generated JSON 
 From the repo root:
 
 ```bash
+cd frontend
 npm install
 npm run dev
 ```
@@ -22,8 +23,9 @@ Then open the URL printed by Vite (typically `http://localhost:5173`).
 To refresh the data the UI reads:
 
 ```bash
-source .venv/bin/activate
-python run.py
+./backend/setup.sh
+source backend/.venv/bin/activate
+python backend/run.py
 ```
 
 ### Option 1: Setup script (recommended)
@@ -31,14 +33,14 @@ python run.py
 From the repo root:
 
 ```bash
-./setup.sh
+./backend/setup.sh
 ```
 
-This creates `.venv` in the repo root and installs dependencies from `scripts/requirements.txt`. Then activate and run scripts:
+This creates `backend/.venv` and installs dependencies from `backend/requirements.txt`. Then activate and run:
 
 ```bash
-source .venv/bin/activate
-python run.py
+source backend/.venv/bin/activate
+python backend/run.py
 ```
 
 To leave the virtual environment:
@@ -53,10 +55,10 @@ From the repo root:
 
 ```bash
 # Create the virtual environment
-python3 -m venv .venv
+python3 -m venv backend/.venv
 
 # Activate it (macOS/Linux)
-source .venv/bin/activate
+source backend/.venv/bin/activate
 
 # On Windows (Command Prompt)
 # .venv\Scripts\activate.bat
@@ -66,13 +68,13 @@ source .venv/bin/activate
 
 # Upgrade pip and install dependencies
 pip install --upgrade pip
-pip install -r scripts/requirements.txt
+pip install -r backend/requirements.txt
 ```
 
-After that, run scripts with the venv active (e.g. `python scripts/run_all.py`). When finished, run `deactivate`.
+After that, run `python backend/run.py` (or individual scripts under `backend/scripts/`). When finished, run `deactivate`.
 
 ### Notes
 
 - `.venv` is in `.gitignore`; it is not committed.
-- Requirements are listed in `scripts/requirements.txt`.
-- For script usage and data refresh, see [scripts/README.md](scripts/README.md).
+- Requirements are listed in `backend/requirements.txt`.
+- For script usage and data refresh, see [backend/scripts/README.md](backend/scripts/README.md).

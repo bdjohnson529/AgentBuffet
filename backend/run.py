@@ -7,9 +7,9 @@ get_financials, get_filings, get_insider, get_prices, get_estimates, get_peers f
 each, writes output into stocks/[TICKER]/, and writes a run summary to reports/.
 
 Usage (from repo root):
-  python run.py
-  python run.py --tickers AAPL,MSFT,GOOGL
-  python run.py --dry-run
+  python backend/run.py
+  python backend/run.py --tickers AAPL,MSFT,GOOGL
+  python backend/run.py --dry-run
 """
 
 from __future__ import annotations
@@ -51,9 +51,8 @@ SEC_DELAY_SEC = 0.3
 
 
 def repo_root() -> Path:
-    """Resolve repo root (parent of scripts/)."""
-    root = Path(__file__).resolve().parent
-    return root
+    """Resolve repository root (parent of backend/)."""
+    return Path(__file__).resolve().parent.parent
 
 
 def load_tickers_from_file(stocks_file: Path) -> list[str]:
@@ -197,7 +196,7 @@ def main() -> None:
         "--tickers",
         type=str,
         default=None,
-        help="Comma-separated tickers (default: all subdirs of stocks/)",
+        help="Comma-separated tickers (default: read from stocks.txt)",
     )
     ap.add_argument(
         "--dry-run",
@@ -212,7 +211,7 @@ def main() -> None:
     args = ap.parse_args()
 
     root = repo_root()
-    scripts_dir = root / "scripts"
+    scripts_dir = root / "backend" / "scripts"
     stocks_dir = root / "stocks"
     reports_dir = root / "reports"
     stocks_file = root / "stocks.txt"
