@@ -20,6 +20,19 @@ npm run dev
 
 Then open the URL printed by Vite (typically `http://localhost:5173`).
 
+### Chat + report generation (frontend intelligence)
+
+The UI now includes an **Analysis** tab where you can:
+
+- Chat with the model about valuation/decision using your `thesis.md` + `stocks/<TICKER>/*.json`
+- Generate `stocks/<TICKER>/report.json` and `report.md` from the browser (writes files via the local Vite dev server)
+
+To enable LLM calls, copy `.env.example` to `.env` at the repo root and set at least one provider key:
+
+```bash
+cp .env.example .env
+```
+
 To refresh the data the UI reads:
 
 ```bash

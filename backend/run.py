@@ -6,10 +6,15 @@ Discovers tickers from stocks.txt (one per line, optional $ prefix), runs get_ne
 get_financials, get_filings, get_insider, get_prices, get_estimates, get_peers for
 each, writes output into stocks/[TICKER]/, and writes a run summary to reports/.
 
+Optionally, can generate per-ticker LLM reports (report.json/report.md) and a
+portfolio rollup report after the data refresh.
+
 Usage (from repo root):
   python backend/run.py
   python backend/run.py --tickers AAPL,MSFT,GOOGL
   python backend/run.py --dry-run
+  python backend/run.py --no-generate-reports
+  python backend/run.py --no-generate-portfolio-report
 """
 
 from __future__ import annotations
@@ -127,7 +132,10 @@ class ProgressSpinner:
 
     def _loop(self) -> None:
         while not self._stop.is_set():
-            sys.stdout.write(f"\r{self._render():<110}")
+            if _TTY:
+                sys.stdout.write(f"\r\033[2K{self._render()}")
+            else:
+                sys.stdout.write(f"\r{self._render():<110}")
             sys.stdout.flush()
             self._stop.wait(0.08)
 
@@ -142,7 +150,10 @@ class ProgressSpinner:
         else:
             icon = f"{_G}✔{_R}" if _TTY else "v"
             note = f"{_G}{_B}All done!{_R}" if _TTY else "All done!"
-        sys.stdout.write(f"\r{icon} [{full_bar}] {_B}{total}/{total}{_R} (100%)   {note}\n")
+        if _TTY:
+            sys.stdout.write(f"\r\033[2K{icon} [{full_bar}] {_B}{total}/{total}{_R} (100%)   {note}\n")
+        else:
+            sys.stdout.write(f"\r{icon} [{full_bar}] {_B}{total}/{total}{_R} (100%)   {note}\n")
         sys.stdout.flush()
 
 
@@ -208,6 +219,39 @@ def main() -> None:
         action="store_true",
         help="Do not write the run summary to reports/",
     )
+    ap.add_argument(
+        "--generate-reports",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="After data refresh, generate stocks/<TICKER>/report.json and report.md (default: enabled; requires LLM API key)",
+    )
+    ap.add_argument(
+        "--generate-portfolio-report",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="After all tickers, generate reports/portfolio_report_YYYY-MM-DD.md (default: enabled; requires per-ticker reports)",
+    )
+    ap.add_argument(
+        "--provider",
+        default="either",
+        choices=("either", "openai", "anthropic"),
+        help="LLM provider for report generation (default: either)",
+    )
+    ap.add_argument(
+        "--model",
+        default=None,
+        help="Override LLM model name for report generation",
+    )
+    ap.add_argument(
+        "--skip-filing-fetch",
+        action="store_true",
+        help="When generating reports, do not fetch/cache latest 10-K/10-Q (uses cached filing if present)",
+    )
+    ap.add_argument(
+        "--refresh-filing",
+        action="store_true",
+        help="When generating reports, force re-fetch of latest 10-K/10-Q even if cached",
+    )
     args = ap.parse_args()
 
     root = repo_root()
@@ -226,17 +270,25 @@ def main() -> None:
 
     reports_dir.mkdir(parents=True, exist_ok=True)
     start = time.perf_counter()
+
+    scripts_list = [s[0] for s in SCRIPT_SPECS]
+    if args.generate_reports:
+        scripts_list.append("generate_report.py")
+    if args.generate_portfolio_report:
+        scripts_list.append("generate_portfolio_report.py")
+
+    steps_per_ticker = len(SCRIPT_SPECS) + (1 if args.generate_reports else 0)
+    total_steps = (len(tickers) * steps_per_ticker) + (1 if args.generate_portfolio_report else 0)
     log_lines = [
         f"# Data run summary" + (" (dry run)" if args.dry_run else ""),
         f"**Started:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
         f"**Tickers:** {', '.join(tickers)}",
-        f"**Scripts:** {', '.join(s[0] for s in SCRIPT_SPECS)}",
+        f"**Scripts:** {', '.join(scripts_list)}",
         "",
         "| Ticker | Script | Status |",
         "|--------|--------|--------|",
     ]
     failed = []
-    total_steps = len(tickers) * len(SCRIPT_SPECS)
     step = 0
     spinner = ProgressSpinner(total_steps)
 
@@ -263,13 +315,69 @@ def main() -> None:
             if base in SEC_SCRIPTS and ok and not args.dry_run:
                 time.sleep(SEC_DELAY_SEC)
 
+        # Optional: generate per-ticker report after data refresh.
+        if args.generate_reports:
+            step += 1
+            spinner.update(step, ticker, "generate_report.py")
+            if args.dry_run:
+                log_lines.append(f"| {ticker} | generate_report.py | ok |")
+            else:
+                cmd = [
+                    sys.executable,
+                    str(scripts_dir / "generate_report.py"),
+                    ticker,
+                    "--provider",
+                    args.provider,
+                ]
+                if args.model:
+                    cmd.extend(["--model", args.model])
+                if args.skip_filing_fetch:
+                    cmd.append("--skip-filing-fetch")
+                if args.refresh_filing:
+                    cmd.append("--refresh-filing")
+                result = subprocess.run(cmd, cwd=str(root), capture_output=True, text=True, timeout=240)
+                ok = result.returncode == 0
+                status = "ok" if ok else "FAIL"
+                if not ok:
+                    stderr = (result.stderr or "").strip()[:500]
+                    failed.append((ticker, "generate_report.py", stderr or result.stdout or "no output"))
+                log_lines.append(f"| {ticker} | generate_report.py | {status} |")
+
+    # Optional: portfolio rollup report (one-time).
+    if args.generate_portfolio_report:
+        step += 1
+        spinner.update(step, "PORTFOLIO", "generate_portfolio_report.py")
+        if args.dry_run:
+            log_lines.append(f"| PORTFOLIO | generate_portfolio_report.py | ok |")
+        else:
+            cmd = [
+                sys.executable,
+                str(scripts_dir / "generate_portfolio_report.py"),
+                "--provider",
+                args.provider,
+            ]
+            if args.model:
+                cmd.extend(["--model", args.model])
+            # If we didn't generate per-ticker reports in this run, allow rollup to regenerate them.
+            if not args.generate_reports:
+                cmd.append("--regenerate-missing")
+            result = subprocess.run(cmd, cwd=str(root), capture_output=True, text=True, timeout=600)
+            ok = result.returncode == 0
+            status = "ok" if ok else "FAIL"
+            if not ok:
+                stderr = (result.stderr or "").strip()[:500]
+                failed.append(("PORTFOLIO", "generate_portfolio_report.py", stderr or result.stdout or "no output"))
+            log_lines.append(f"| PORTFOLIO | generate_portfolio_report.py | {status} |")
+
     spinner.stop(failed=len(failed))
     elapsed = time.perf_counter() - start
-    log_lines.extend([
-        "",
-        f"**Elapsed:** {elapsed:.1f}s",
-        f"**Finished:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
-    ])
+    log_lines.extend(
+        [
+            "",
+            f"**Elapsed:** {elapsed:.1f}s",
+            f"**Finished:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+        ]
+    )
     if failed:
         log_lines.append("")
         log_lines.append("## Failures")
@@ -289,7 +397,9 @@ def main() -> None:
                 print(f"  {ticker} / {script_name}: {msg}", file=sys.stderr)
             sys.exit(1)
     else:
-        print(f"Dry run: would process {len(tickers)} tickers with {len(SCRIPT_SPECS)} scripts each.")
+        extra = " + portfolio report" if args.generate_portfolio_report else ""
+        extra = extra + " + per-ticker reports" if args.generate_reports else extra
+        print(f"Dry run: would process {len(tickers)} tickers with {len(SCRIPT_SPECS)} scripts each{extra}.")
 
 
 if __name__ == "__main__":

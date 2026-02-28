@@ -1,6 +1,8 @@
 .venv
 .DS_Store
 
+.env
+
 stocks/*
 reports/*
 

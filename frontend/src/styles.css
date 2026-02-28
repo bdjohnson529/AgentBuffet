@@ -320,3 +320,186 @@ a {
   color: var(--muted);
 }
 
+.input {
+  width: 100%;
+  padding: 10px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  outline: none;
+}
+
+.input:focus {
+  border-color: rgba(125, 211, 252, 0.55);
+  box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.12);
+}
+
+.btn,
+.btnSecondary {
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.btn {
+  background: rgba(125, 211, 252, 0.18);
+  border-color: rgba(125, 211, 252, 0.35);
+  color: var(--text);
+}
+
+.btn:hover {
+  background: rgba(125, 211, 252, 0.24);
+}
+
+.btnSecondary {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.btnSecondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.btn:disabled,
+.btnSecondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pre {
+  margin: 10px 0 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.18);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.chat {
+  margin-top: 10px;
+}
+
+.chatLog {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px;
+  max-height: 380px;
+  overflow: auto;
+}
+
+.chatMsg {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chatMsgUser {
+  background: rgba(167, 139, 250, 0.08);
+}
+
+.chatMsgAssistant {
+  background: rgba(125, 211, 252, 0.08);
+}
+
+.chatRole {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chatContent {
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chatComposer {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.md {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.12);
+  overflow: auto;
+}
+
+.md :where(h1, h2, h3) {
+  margin: 0.4em 0 0.35em;
+  line-height: 1.2;
+}
+
+.md h1 {
+  font-size: 18px;
+}
+
+.md h2 {
+  font-size: 16px;
+}
+
+.md h3 {
+  font-size: 14px;
+}
+
+.md :where(p, ul, ol) {
+  margin: 0.4em 0;
+}
+
+.md :where(ul, ol) {
+  padding-left: 1.2em;
+}
+
+.md :where(code) {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.md :where(pre) {
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.18);
+  overflow: auto;
+}
+
+.md :where(table) {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.md :where(th, td) {
+  text-align: left;
+  padding: 8px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+  vertical-align: top;
+}
+
+.md :where(th) {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.04);
+}
+

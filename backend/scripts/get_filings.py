@@ -13,6 +13,7 @@ Usage:
 
 import argparse
 import json
+import os
 import re
 import sys
 import time
@@ -25,7 +26,7 @@ except ImportError:
     sys.exit(1)
 
 SEC_HEADERS = {
-    "User-Agent": "InvestmentAnalysis/1.0 (research; contact@example.com)",
+    "User-Agent": os.getenv("SEC_USER_AGENT") or "InvestmentAnalysis/1.0 (research; contact@example.com)",
     "Accept": "application/json",
 }
 COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"

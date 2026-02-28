@@ -7,9 +7,11 @@ import { NewsList } from "./components/NewsList";
 import { FilingsTable } from "./components/FilingsTable";
 import { PriceChart } from "./components/PriceChart";
 import { FinancialsPanel } from "./components/FinancialsPanel";
+import { AnalysisPanel } from "./components/AnalysisPanel";
 import { formatNumberCompact } from "./lib/format";
+import { ReportFileSchema, type ReportFile } from "./intelligence/schema";
 
-type Tab = "overview" | "news" | "prices" | "financials" | "filings" | "insider" | "peers";
+type Tab = "overview" | "analysis" | "news" | "prices" | "financials" | "filings" | "insider" | "peers";
 
 function getQueryParam(name: string): string | null {
   const url = new URL(window.location.href);
@@ -28,6 +30,19 @@ async function fetchDataset<T>(ticker: string, dataset: DatasetName): Promise<T>
   return (await res.json()) as T;
 }
 
+async function fetchReportFile(ticker: string): Promise<ReportFile | null> {
+  try {
+    const res = await fetch(`/stocks/${ticker}/report.json`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const obj = (await res.json()) as unknown;
+    const parsed = ReportFileSchema.safeParse(obj);
+    if (!parsed.success) return null;
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+
 export function App() {
   const [tickers, setTickers] = useState<string[]>([]);
   const [loadingTickers, setLoadingTickers] = useState(true);
@@ -43,6 +58,7 @@ export function App() {
   const [estimates, setEstimates] = useState<EstimatesJson | null>(null);
   const [filings, setFilings] = useState<FilingsJson | null>(null);
   const [insider, setInsider] = useState<FilingsJson | null>(null);
+  const [report, setReport] = useState<ReportFile | null>(null);
 
   const [dataError, setDataError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
@@ -89,16 +105,18 @@ export function App() {
     setEstimates(null);
     setFilings(null);
     setInsider(null);
+    setReport(null);
 
     (async () => {
       try {
-        const [n, p, f, e, fi, ins] = await Promise.all([
+        const [n, p, f, e, fi, ins, rep] = await Promise.all([
           fetchDataset<NewsJson>(selected, "news").catch(() => null),
           fetchDataset<PricesJson>(selected, "prices").catch(() => null),
           fetchDataset<FinancialsJson>(selected, "financials").catch(() => null),
           fetchDataset<EstimatesJson>(selected, "estimates").catch(() => null),
           fetchDataset<FilingsJson>(selected, "filings").catch(() => null),
           fetchDataset<FilingsJson>(selected, "insider").catch(() => null),
+          fetchReportFile(selected).catch(() => null),
         ]);
         setNews(n);
         setPrices(p);
@@ -106,6 +124,7 @@ export function App() {
         setEstimates(e);
         setFilings(fi);
         setInsider(ins);
+        setReport(rep);
       } catch (e) {
         setDataError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -124,6 +143,7 @@ export function App() {
   const tabs = useMemo(
     () => [
       { id: "overview" as const, label: "Overview" },
+      { id: "analysis" as const, label: "Analysis" },
       { id: "news" as const, label: "News" },
       { id: "prices" as const, label: "Prices" },
       { id: "financials" as const, label: "Financials" },
@@ -204,6 +224,18 @@ export function App() {
                 </div>
               ) : (
                 <div className="muted">No financials loaded for {selected}.</div>
+              )
+            ) : null}
+
+            {tab === "analysis" ? (
+              selected ? (
+                <AnalysisPanel
+                  ticker={selected}
+                  existingReport={report}
+                  onReportUpdated={(r) => setReport(r)}
+                />
+              ) : (
+                <div className="muted">Select a ticker.</div>
               )
             ) : null}
 
