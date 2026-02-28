@@ -7,3 +7,6 @@ reports/*
 node_modules/
 dist/
 .vite/
+
+.cursor/
+frontend/dist/

@@ -35,7 +35,7 @@ export function FinancialsPanel({ financials, estimates, prices }: Props) {
         </div>
       </div>
 
-      <div className="row">
+      <div className="row" style={{ gridColumn: "span 12" }}>
         <StatCard title="Market cap" value={formatNumberCompact(financials.marketCap)} note={currency} />
         <StatCard
           title="Enterprise value"
