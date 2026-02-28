@@ -15,7 +15,7 @@ class LLMConfig:
     provider: ProviderName
     model: str
     temperature: float = 0.2
-    max_output_tokens: int = 900
+    max_output_tokens: int = 2048
 
 
 class LLMError(RuntimeError):
@@ -50,14 +50,16 @@ def _provider_candidates(requested: str) -> list[ProviderName]:
 def _maybe_unwrap_markdown_fences(text: str) -> str:
     """
     If the model wrapped JSON in ```json fences, unwrap the first fenced block.
+    Handles both closed (```...```) and unclosed (```... only) fences.
     """
     s = (text or "").strip()
     if "```" not in s:
         return s
     parts = s.split("```")
-    if len(parts) < 3:
+    # Need at least one opening fence: parts = [before, content, (optional) after]
+    if len(parts) < 2:
         return s
-    # parts[1] is language header + content; prefer it
+    # parts[1] is language header + content (with or without closing fence)
     candidate = parts[1]
     # Remove optional leading language token on the first line.
     lines = candidate.splitlines()
@@ -81,12 +83,75 @@ def _extract_json_object(text: str) -> Optional[str]:
     return s[start : end + 1].strip()
 
 
+# Defaults for required report keys when repairing truncated LLM output.
+_REPORT_DEFAULTS: dict[str, Any] = {
+    "moat": "unknown",
+    "financial_health": "unknown",
+    "valuation": "unknown",
+    "base_case": "(Output truncated.)",
+    "upside_case": "",
+    "downside_case": "",
+    "action": "HOLD",
+    "reasoning": "(Output truncated by token limit.)",
+}
+
+_VALID_MOAT = {"High", "Medium", "Low", "unknown"}
+_VALID_FINANCIAL_HEALTH = {"Pass", "Fail", "unknown"}
+_VALID_VALUATION = {"Over-valued", "Under-valued", "unknown"}
+_VALID_ACTION = {"BUY", "HOLD", "SELL", "AVOID"}
+
+
+def _repair_truncated_json(s: str, e: json.JSONDecodeError) -> Optional[dict[str, Any]]:
+    """
+    If the LLM hit max_tokens and returned truncated JSON (e.g. "Unterminated string"),
+    close the unterminated string at end of input, close braces, and fill missing keys.
+    (e.pos points to the start of the bad string, so we close at end of s.)
+    """
+    if "Unterminated" not in str(e):
+        return None
+    # Truncation: close the open string at the end of what we got, then close braces
+    head = s.rstrip() + '"'
+    open_braces = head.count("{") - head.count("}")
+    if open_braces <= 0:
+        return None
+    # Avoid trailing comma before closing brace (invalid JSON)
+    head = head.rstrip()
+    while head.endswith(","):
+        head = head[:-1].rstrip()
+    head += "}" * open_braces
+    try:
+        obj = json.loads(head)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(obj, dict):
+        return None
+    for k, default in _REPORT_DEFAULTS.items():
+        obj.setdefault(k, default)
+    # Normalize enum-like fields in case truncation produced invalid values
+    if obj.get("moat") not in _VALID_MOAT:
+        obj["moat"] = "unknown"
+    if obj.get("financial_health") not in _VALID_FINANCIAL_HEALTH:
+        obj["financial_health"] = "unknown"
+    if obj.get("valuation") not in _VALID_VALUATION:
+        obj["valuation"] = "unknown"
+    if obj.get("action") not in _VALID_ACTION:
+        obj["action"] = "HOLD"
+    return obj
+
+
 def _parse_report_json(text: str) -> dict[str, Any]:
     raw = text or ""
     s = _maybe_unwrap_markdown_fences(raw)
     try:
         obj = json.loads(s)
-    except Exception as e:
+    except json.JSONDecodeError as e:
+        repaired = _repair_truncated_json(s, e)
+        if repaired is not None:
+            try:
+                m = ReportModel.model_validate(repaired)
+                return m.model_dump()
+            except Exception:
+                pass
         extracted = _extract_json_object(s)
         if extracted and extracted != s:
             try:
@@ -97,6 +162,9 @@ def _parse_report_json(text: str) -> dict[str, Any]:
         else:
             snippet = (s[:300] + "…") if len(s) > 300 else s
             raise LLMError(f"Model did not return valid JSON: {e}. Output starts with: {snippet!r}") from e
+    except Exception as e:
+        snippet = (s[:300] + "…") if len(s) > 300 else s
+        raise LLMError(f"Model did not return valid JSON: {e}. Output starts with: {snippet!r}") from e
     try:
         m = ReportModel.model_validate(obj)
     except Exception as e:

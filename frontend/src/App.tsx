@@ -14,7 +14,7 @@ import { ReportFileSchema, type ReportFile } from "./intelligence/schema";
 import type { LLMSettings } from "./intelligence/api";
 import { loadLLMSettings, saveLLMSettings } from "./intelligence/settings";
 
-type Tab = "analysis" | "news" | "prices" | "financials" | "filings" | "insider" | "peers";
+type Tab = "analysis" | "news" | "prices" | "financials" | "filings" | "insider";
 
 function getQueryParam(name: string): string | null {
   const url = new URL(window.location.href);
@@ -156,7 +156,6 @@ export function App() {
       { id: "financials" as const, label: "Financials" },
       { id: "filings" as const, label: "Filings" },
       { id: "insider" as const, label: "Insider" },
-      { id: "peers" as const, label: "Peers" },
     ],
     [],
   );
@@ -281,8 +280,6 @@ export function App() {
                 <div className="muted">No insider filings loaded.</div>
               )
             ) : null}
-
-            {tab === "peers" ? <div className="muted">Peers are currently empty in your data outputs.</div> : null}
           </div>
         </div>
       </div>
