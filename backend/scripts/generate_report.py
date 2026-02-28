@@ -29,9 +29,9 @@ def main() -> None:
     ap.add_argument("ticker", help="Stock ticker symbol (e.g. AAPL)")
     ap.add_argument(
         "--provider",
-        default="either",
+        default="anthropic",
         choices=("either", "openai", "anthropic"),
-        help="LLM provider to use (default: either, auto-detect by env vars)",
+        help="LLM provider to use (default: anthropic)",
     )
     ap.add_argument("--model", default=None, help="Override model name for the chosen provider")
     ap.add_argument(

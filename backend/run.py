@@ -233,9 +233,9 @@ def main() -> None:
     )
     ap.add_argument(
         "--provider",
-        default="either",
+        default="anthropic",
         choices=("either", "openai", "anthropic"),
-        help="LLM provider for report generation (default: either)",
+        help="LLM provider for report generation (default: anthropic)",
     )
     ap.add_argument(
         "--model",

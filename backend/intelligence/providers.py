@@ -40,7 +40,7 @@ def _detect_provider(requested: str) -> ProviderName:
         return "anthropic"
     if has_openai and has_anthropic:
         # Default preference (can be overridden by CLI flag).
-        return "openai"
+        return "anthropic"
     raise LLMError("No API key found. Set OPENAI_API_KEY and/or ANTHROPIC_API_KEY.")
 
 
