@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import sys
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -68,6 +69,13 @@ def main() -> None:
         print(f"OPENAI_API_KEY set: {has_openai}")
         print(f"ANTHROPIC_API_KEY set: {has_anthropic}")
         sys.exit(0)
+
+    # urllib3 v2 warns on macOS Python builds linked against LibreSSL. Silence it here
+    # (without importing urllib3, which would trigger the warning before filtering).
+    warnings.filterwarnings(
+        "ignore",
+        message=r"urllib3 v2 only supports OpenSSL 1\.1\.1\+.*LibreSSL.*",
+    )
 
     # Heavy imports (requests/openai/anthropic/bs4) come after --debug-env.
     from backend.intelligence.filings import fetch_and_cache_latest_filing  # noqa: E402

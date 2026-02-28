@@ -190,8 +190,11 @@ def run_script(
             timeout=120,
         )
         if result.returncode != 0:
-            stderr = (result.stderr or "").strip()[:500]
-            return False, f"exit {result.returncode}: {stderr or result.stdout or 'no output'}"
+            stderr = (result.stderr or "").strip()
+            stdout = (result.stdout or "").strip()
+            # Prefer the tail so early warnings don't hide the real exception.
+            tail = (stderr[-800:] if stderr else "") or (stdout[-800:] if stdout else "") or "no output"
+            return False, f"exit {result.returncode}: {tail}"
         return True, "ok"
     except subprocess.TimeoutExpired:
         return False, "timeout"
@@ -339,8 +342,10 @@ def main() -> None:
                 ok = result.returncode == 0
                 status = "ok" if ok else "FAIL"
                 if not ok:
-                    stderr = (result.stderr or "").strip()[:500]
-                    failed.append((ticker, "generate_report.py", stderr or result.stdout or "no output"))
+                    stderr = (result.stderr or "").strip()
+                    stdout = (result.stdout or "").strip()
+                    tail = (stderr[-1200:] if stderr else "") or (stdout[-1200:] if stdout else "") or "no output"
+                    failed.append((ticker, "generate_report.py", tail))
                 log_lines.append(f"| {ticker} | generate_report.py | {status} |")
 
     # Optional: portfolio rollup report (one-time).
@@ -365,8 +370,10 @@ def main() -> None:
             ok = result.returncode == 0
             status = "ok" if ok else "FAIL"
             if not ok:
-                stderr = (result.stderr or "").strip()[:500]
-                failed.append(("PORTFOLIO", "generate_portfolio_report.py", stderr or result.stdout or "no output"))
+                stderr = (result.stderr or "").strip()
+                stdout = (result.stdout or "").strip()
+                tail = (stderr[-1200:] if stderr else "") or (stdout[-1200:] if stdout else "") or "no output"
+                failed.append(("PORTFOLIO", "generate_portfolio_report.py", tail))
             log_lines.append(f"| PORTFOLIO | generate_portfolio_report.py | {status} |")
 
     spinner.stop(failed=len(failed))
