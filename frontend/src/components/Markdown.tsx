@@ -3,11 +3,12 @@ import remarkGfm from "remark-gfm";
 
 type Props = {
   markdown: string;
+  className?: string;
 };
 
-export function Markdown({ markdown }: Props) {
+export function Markdown({ markdown, className }: Props) {
   return (
-    <div className="md">
+    <div className={["md", className].filter(Boolean).join(" ")}>
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
     </div>
   );

@@ -1,1 +1,1 @@
-AI data center scaling is constrained by optical interconnect bandwidth, power, and packaging bottlenecks. The industry is migrating from 400G → 800G → 1.6T, from EML → CW lasers, and toward co-packaged optics (CPO). Value accrues to companies controlling bottlenecks across substrates, laser supply, integration, and testing.
+Agentic commerce is going to power a boom for companies which are part of the e-commerce value chain.

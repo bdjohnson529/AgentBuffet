@@ -17,6 +17,7 @@ type Props = {
 };
 
 type Status = { kind: "idle" } | { kind: "working"; label: string } | { kind: "error"; message: string };
+type ChatMessageUi = ChatMessage & { pending?: boolean };
 
 function extractLikelyJson(text: string): string {
   const t = (text || "").trim();
@@ -36,7 +37,7 @@ export function AnalysisPanel({ ticker, existingReport, onReportUpdated, setting
   const [reportMd, setReportMd] = useState<string | null>(null);
   const [showRawMarkdown, setShowRawMarkdown] = useState(false);
 
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+  const [chatMessages, setChatMessages] = useState<ChatMessageUi[]>([
     { role: "assistant", content: "Ask me about valuation, risks, or the final decision — I’ll answer using the thesis + facts for this ticker." },
   ]);
   const [chatInput, setChatInput] = useState("");
@@ -148,19 +149,48 @@ export function AnalysisPanel({ ticker, existingReport, onReportUpdated, setting
 
       setStatus({ kind: "working", label: "Thinking…" });
       await ensureContextLoaded();
-      const sys = systemPrompt ?? buildChatSystemPrompt({ ticker, thesisText: thesisText ?? "", factsBundle: facts?.facts ?? {} });
+      // IMPORTANT: React state updates from ensureContextLoaded() are async; don't rely on `facts`/`thesisText`
+      // being updated immediately when constructing the prompt for this request.
+      const fb = facts ?? (await loadFactsForTicker(ticker));
+      const tt = thesisText ?? (await loadThesisText());
+      if (!facts) setFacts(fb);
+      if (!thesisText) setThesisText(tt);
 
-      const nextMessages: ChatMessage[] = [...chatMessages, { role: "user", content: q }];
+      const sys = buildChatSystemPrompt({
+        ticker,
+        thesisText: tt,
+        factsBundle: fb.facts,
+        reportFile: existingReport ?? (reportFields ? { ticker, asOfUtc: fb.asOfUtc, report: reportFields } : null),
+      });
+
+      const pending: ChatMessageUi = { role: "assistant", content: "", pending: true };
+      const nextMessages: ChatMessageUi[] = [...chatMessages, { role: "user", content: q }, pending];
       setChatMessages(nextMessages);
 
       const firstUserIdx = nextMessages.findIndex((m) => m.role === "user");
-      const convo = firstUserIdx === -1 ? nextMessages : nextMessages.slice(firstUserIdx);
+      const convoUi = firstUserIdx === -1 ? nextMessages : nextMessages.slice(firstUserIdx);
+      const convo = convoUi.filter((m) => !m.pending).map((m) => ({ role: m.role, content: m.content }));
+
       const { text, providerUsed, modelUsed } = await chatComplete({ settings, system: sys, messages: convo });
-      setChatMessages([...nextMessages, { role: "assistant", content: text }]);
+      setChatMessages((curr) => {
+        let idx = -1;
+        for (let i = curr.length - 1; i >= 0; i--) {
+          if (curr[i]?.pending) {
+            idx = i;
+            break;
+          }
+        }
+        if (idx === -1) return [...curr, { role: "assistant", content: text }];
+        const copy = curr.slice();
+        copy[idx] = { role: "assistant", content: text };
+        return copy;
+      });
       setStatus({ kind: "idle" });
 
       setSettings((s) => ({ ...s, provider: (providerUsed as any) ?? s.provider, model: modelUsed ?? s.model }));
     } catch (e) {
+      // Remove pending typing indicator on error
+      setChatMessages((curr) => curr.filter((m) => !m.pending));
       setStatus({ kind: "error", message: e instanceof Error ? e.message : String(e) });
     }
   }
@@ -234,7 +264,19 @@ export function AnalysisPanel({ ticker, existingReport, onReportUpdated, setting
             {chatMessages.map((m, i) => (
               <div key={i} className={`chatMsg ${m.role === "user" ? "chatMsgUser" : "chatMsgAssistant"}`}>
                 <div className="chatRole">{m.role}</div>
-                <div className="chatContent">{m.content}</div>
+                <div className={`chatContent ${m.role === "user" ? "chatContentUser" : "chatContentAssistant"}`}>
+                  {m.pending ? (
+                    <div className="typingDots" aria-label="Assistant is typing">
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                  ) : m.role === "assistant" ? (
+                    <Markdown markdown={m.content} className="mdChat" />
+                  ) : (
+                    m.content
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -254,7 +296,11 @@ export function AnalysisPanel({ ticker, existingReport, onReportUpdated, setting
             <button
               className="btnSecondary"
               type="button"
-              onClick={() => setChatMessages([{ role: "assistant", content: "Ask me about valuation, risks, or the final decision — I’ll answer using the thesis + facts for this ticker." }])}
+              onClick={() =>
+                setChatMessages([
+                  { role: "assistant", content: "Ask me about valuation, risks, or the final decision — I’ll answer using the thesis + facts for this ticker." },
+                ])
+              }
               disabled={status.kind === "working"}
             >
               Reset
