@@ -10,8 +10,6 @@ To enable LLM calls, copy `.env.example` to `.env` at the repo root and set at l
 cp .env.example .env
 ```
 
-
-
 ## Backend
 
 This creates `backend/.venv` and installs dependencies from `backend/requirements.txt`. Then activate and run:
@@ -31,6 +29,10 @@ cd frontend
 npm install
 npm run dev
 ```
+
+## Config
+* Change the stock list in `stocks.txt`
+* Change the thesis in `thesis.md`
 
 ### Notes
 
