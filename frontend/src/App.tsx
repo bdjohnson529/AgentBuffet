@@ -265,13 +265,15 @@ export function App() {
                       <FinancialsPanel financials={financials} estimates={estimates} prices={prices} />
                     </div>
                   ) : null}
-                  <AnalysisPanel
-                    ticker={selected}
-                    settings={llmSettings}
-                    setSettings={setLlmSettings}
-                    existingReport={report}
-                    onReportUpdated={(r) => setReport(r)}
-                  />
+                  <div className="analysisTopGap">
+                    <AnalysisPanel
+                      ticker={selected}
+                      settings={llmSettings}
+                      setSettings={setLlmSettings}
+                      existingReport={report}
+                      onReportUpdated={(r) => setReport(r)}
+                    />
+                  </div>
                 </>
               ) : (
                 <div className="muted">Select a ticker.</div>
